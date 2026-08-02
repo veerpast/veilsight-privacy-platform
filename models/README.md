@@ -1,6 +1,8 @@
 # Optional local models
 
-VeilSight works immediately with OpenCV Haar. Model weights are intentionally not committed because they are large and may have different licence terms.
+VeilSight works immediately with OpenCV Haar. This showcase repository includes
+small local MediaPipe and YOLO nano assets for reproducible demos; review their
+individual licences and provenance before redistribution or commercial use.
 
 ## MediaPipe
 
