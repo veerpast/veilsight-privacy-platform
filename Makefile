@@ -1,4 +1,4 @@
-.PHONY: setup setup-full api web test
+.PHONY: setup setup-full api web demo test
 
 setup:
 	python3 -m venv .venv
@@ -13,6 +13,9 @@ api:
 
 web:
 	cd frontend && npm run dev
+
+demo:
+	./scripts/start_demo.sh
 
 test:
 	PYTHONPATH=backend python3 -m unittest discover -s backend/tests -v
