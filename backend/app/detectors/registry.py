@@ -4,9 +4,6 @@ from app.detectors.base import FaceDetector
 from app.detectors.haar import HaarFaceDetector
 from collections.abc import Callable
 
-from app.detectors.mediapipe_detector import MediaPipeFaceDetector
-from app.detectors.yolo_detector import YoloFaceDetector
-
 
 class DetectorRegistry:
     def __init__(self) -> None:
@@ -20,8 +17,13 @@ class DetectorRegistry:
             "yolo": None,
         }
         self._factories: dict[str, Callable[[], FaceDetector]] = {
-            "mediapipe": MediaPipeFaceDetector,
-            "yolo": YoloFaceDetector,
+            # Import heavyweight runtimes only when a request selects them.
+            "mediapipe": lambda: __import__(
+                "app.detectors.mediapipe_detector", fromlist=["MediaPipeFaceDetector"]
+            ).MediaPipeFaceDetector(),
+            "yolo": lambda: __import__(
+                "app.detectors.yolo_detector", fromlist=["YoloFaceDetector"]
+            ).YoloFaceDetector(),
         }
 
     def _load(self, key: str) -> FaceDetector:
