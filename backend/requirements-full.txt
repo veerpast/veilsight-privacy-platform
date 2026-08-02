@@ -1,0 +1,5 @@
+-r requirements.txt
+# MediaPipe 0.10.x is the portable wheel used by this project. Newer 1.x
+# wheels currently require a different Tasks runtime on some macOS machines.
+mediapipe==0.10.21
+ultralytics==8.4.115
