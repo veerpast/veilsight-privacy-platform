@@ -2,22 +2,41 @@ from __future__ import annotations
 
 from app.detectors.base import FaceDetector
 from app.detectors.haar import HaarFaceDetector
+from collections.abc import Callable
+
 from app.detectors.mediapipe_detector import MediaPipeFaceDetector
 from app.detectors.yolo_detector import YoloFaceDetector
 
 
 class DetectorRegistry:
     def __init__(self) -> None:
-        detectors: list[FaceDetector] = [
-            HaarFaceDetector(),
-            MediaPipeFaceDetector(),
-            YoloFaceDetector(),
-        ]
-        self._detectors = {detector.key: detector for detector in detectors}
+        # Optional runtimes are intentionally lazy: importing MediaPipe and
+        # Ultralytics can take tens of seconds on a small Render instance.
+        # Keeping them out of process startup makes /api/health reliable while
+        # still loading the real detector when a request selects it.
+        self._detectors: dict[str, FaceDetector | None] = {
+            "haar": HaarFaceDetector(),
+            "mediapipe": None,
+            "yolo": None,
+        }
+        self._factories: dict[str, Callable[[], FaceDetector]] = {
+            "mediapipe": MediaPipeFaceDetector,
+            "yolo": YoloFaceDetector,
+        }
+
+    def _load(self, key: str) -> FaceDetector:
+        detector = self._detectors.get(key)
+        if detector is None:
+            factory = self._factories.get(key)
+            if factory is None:
+                raise ValueError(f"Unknown detector: {key}")
+            detector = factory()
+            self._detectors[key] = detector
+        return detector
 
     def get(self, key: str) -> FaceDetector:
         try:
-            detector = self._detectors[key]
+            detector = self._load(key)
         except KeyError as exc:
             raise ValueError(f"Unknown detector: {key}") from exc
         if not detector.available:
@@ -25,18 +44,27 @@ class DetectorRegistry:
         return detector
 
     def status(self) -> list[dict[str, str | bool]]:
-        return [
-            {
-                "key": detector.key,
-                "label": detector.label,
-                "available": detector.available,
-                "reason": detector.unavailable_reason,
-            }
-            for detector in self._detectors.values()
-        ]
+        labels = {"haar": "OpenCV Haar", "mediapipe": "MediaPipe", "yolo": "YOLO Face"}
+        rows: list[dict[str, str | bool]] = []
+        for key, detector in self._detectors.items():
+            if detector is None:
+                rows.append({
+                    "key": key,
+                    "label": labels[key],
+                    "available": True,
+                    "reason": "Ready on first use (lazy-loaded).",
+                })
+            else:
+                rows.append({
+                    "key": detector.key,
+                    "label": detector.label,
+                    "available": detector.available,
+                    "reason": detector.unavailable_reason,
+                })
+        return rows
 
     def available(self) -> list[FaceDetector]:
-        return [detector for detector in self._detectors.values() if detector.available]
+        return [self._load(key) for key in self._detectors if self._load(key).available]
 
     def all(self) -> list[FaceDetector]:
-        return list(self._detectors.values())
+        return [self._load(key) for key in self._detectors]
