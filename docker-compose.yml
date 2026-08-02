@@ -1,0 +1,16 @@
+services:
+  api:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    environment:
+      - VEILSIGHT_YOLO_MODEL=/models/yolov8n-face.pt
+    volumes:
+      - ./models:/models:ro
+
+  web:
+    build: ./frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      - api
